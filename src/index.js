@@ -12,7 +12,7 @@ const { adjustStylesheet } = require('./stylesheet');
 
 const cytosnap = require('cytosnap');
 cytosnap.use(['cytoscape-fcose', 'cytoscape-cola', 'cytoscape-cise', 'cytoscape-dagre', 'cytoscape-klay', 'cytoscape-avsdf'], {sbgnStylesheet: 'cytoscape-sbgn-stylesheet', layoutUtilities: 'cytoscape-layout-utilities', svg: 'cytoscape-svg'});
-let snap = cytosnap();
+
 
 const port = process.env.PORT || 3000;
 
@@ -66,10 +66,6 @@ const errorOutput = fs.createWriteStream('./syblars_error.log');
 // Custom simple logger
 const logger = new Console({ stdout: errorOutput });
 
-let cy;
-let options;
-let data;
-let body;
 
 app.use(express.static(path.join(__dirname, "../public/")));
 app.use(cors());
@@ -77,11 +73,15 @@ app.use(cors());
 // middleware to manage the formats of files
 app.use((req, res, next) => {
     if (req.method === "POST") {
-        body = '';
-        isJson = false;
-        options = '';
-        data = '';
+        let cy; //this variable does not get assigned here so its is ignored safely
+        //        res.locals.cy = cy; is therefore not added
+        let body = '';
+        let isJson = false;
+        let options = '';
+        let data = '';
         errorMessage = undefined;
+
+
 
         req.on('data', chunk => {
             body += chunk;
@@ -142,6 +142,11 @@ app.use((req, res, next) => {
                   logger.log('---- %s', date + ": \n" + errorMessage.replace(/<br\s*[\/]?>/gi,"\n").replace(/<b\s*\/?>/mg,"") + "\n");
                 }
             }
+
+            res.locals.body = body;
+            res.locals.isJson = isJson;
+            res.locals.options = options;
+            res.locals.data = data;
             if(errorMessage) {
               return res.status(500).send({
                 errorMessage: errorMessage
@@ -161,6 +166,12 @@ app.use((req, res, next) => {
 // POST :format?clusters=true
 app.post('/:format', (req, res) => {
 
+
+    let body = res.locals.body;
+    let isJson = res.locals.isJson;
+    let options = res.locals.options;
+    let data = res.locals.data;
+    let cy; // this was a global variable and assigned a value only here
     let size = 30;
     let format = req.params.format;
     let imageWanted = true;
@@ -584,7 +595,7 @@ app.post('/:format', (req, res) => {
 
     let colorScheme = imageOptions.color || "white";
     let stylesheet = adjustStylesheet(format, colorScheme);
-
+    let snap = cytosnap(); //this was defined as a global variable but is not used until this try/catch statement
     try {
       snap.start().then(function(){
         return snap.shot({
